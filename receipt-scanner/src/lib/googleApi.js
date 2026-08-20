@@ -48,6 +48,36 @@ export function isSignedIn() {
   return !!accessToken
 }
 
+// Looks at existing files in the Drive folder to find the next free 000–999
+// sequence number for a given date, so filenames like 2026-08-20_Groceries_001
+// don't collide with ones already saved for that same date.
+export async function getNextSequenceNumber(date) {
+  const folderId = import.meta.env.VITE_DRIVE_FOLDER_ID
+  const q = encodeURIComponent(`'${folderId}' in parents and name contains '${date}' and trashed=false`)
+
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(name)`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  if (!res.ok) throw new Error(`Drive list failed: ${res.status}`)
+  const data = await res.json()
+
+  const prefix = `${date}_`
+  let maxNum = -1
+  for (const file of data.files || []) {
+    if (!file.name.startsWith(prefix)) continue
+    const match = file.name.match(/_(\d{3})(?:\.[^.]+)?$/)
+    if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10))
+  }
+
+  return String(Math.min(maxNum + 1, 999)).padStart(3, '0')
+}
+
+// Strips anything unsafe/messy for a filename, so "Fast Food!" becomes "FastFood".
+export function sanitizeForFilename(str) {
+  const cleaned = (str || '').replace(/[^a-zA-Z0-9]+/g, '')
+  return cleaned || 'Uncategorized'
+}
+
 // Uploads a photo into a specific Drive folder (set via VITE_DRIVE_FOLDER_ID).
 export async function uploadReceiptPhoto(blob, filename) {
   const folderId = import.meta.env.VITE_DRIVE_FOLDER_ID
@@ -70,20 +100,17 @@ export async function uploadReceiptPhoto(blob, filename) {
   return res.json() // includes file id
 }
 
-// Appends a single summary row per receipt to a Sheet: date, merchant, top item, total.
-// "Top item" = the single most expensive line item on the receipt.
-// spreadsheetId comes from your .env (VITE_SHEET_ID) — create a blank Sheet first
-// and copy the ID out of its URL.
-export async function appendToSheet(receipt) {
+// Appends a single row per receipt into specific columns, starting at row 8:
+//   C = Date, D = Category, F = Total Price, J = Filename
+// (E, G, H, I are left blank — they're not part of this app's output.)
+// Category matches exactly what's used in the Drive filename.
+// spreadsheetId comes from your .env (VITE_SHEET_ID).
+export async function appendToSheet({ date, category, total, filename }) {
   const spreadsheetId = import.meta.env.VITE_SHEET_ID
-  const range = 'Sheet1!A1'
+  const range = 'Sheet1!C8:J' // anchors the table at row 8; append finds the next empty row within it
 
-  const topItem = (receipt.items || []).reduce(
-    (best, item) => (item.price > (best?.price ?? -Infinity) ? item : best),
-    null
-  )
-
-  const values = [[receipt.date, receipt.merchant, topItem?.name ?? '', receipt.total]]
+  // Columns C through J, in order: C, D, E, F, G, H, I, J
+  const values = [[date, category, '', total, '', '', '', filename]]
 
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`,
