@@ -48,9 +48,13 @@ export function isSignedIn() {
   return !!accessToken
 }
 
-// Uploads a photo to a specific Drive folder (creates the folder on first run).
+// Uploads a photo into a specific Drive folder (set via VITE_DRIVE_FOLDER_ID).
 export async function uploadReceiptPhoto(blob, filename) {
-  const folderId = await getOrCreateFolder('Receipt Scanner')
+  const folderId = import.meta.env.VITE_DRIVE_FOLDER_ID
+
+  if (!folderId) {
+    throw new Error('VITE_DRIVE_FOLDER_ID is not set — check your environment variables')
+  }
 
   const metadata = { name: filename, parents: [folderId] }
   const form = new FormData()
@@ -66,32 +70,20 @@ export async function uploadReceiptPhoto(blob, filename) {
   return res.json() // includes file id
 }
 
-async function getOrCreateFolder(name) {
-  const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`)
-  const search = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  }).then((r) => r.json())
-
-  if (search.files?.length) return search.files[0].id
-
-  const created = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' })
-  }).then((r) => r.json())
-
-  return created.id
-}
-
-// Appends one row per line item (or one summary row) to a Sheet.
+// Appends a single summary row per receipt to a Sheet: date, merchant, top item, total.
+// "Top item" = the single most expensive line item on the receipt.
 // spreadsheetId comes from your .env (VITE_SHEET_ID) — create a blank Sheet first
 // and copy the ID out of its URL.
 export async function appendToSheet(receipt) {
   const spreadsheetId = import.meta.env.VITE_SHEET_ID
   const range = 'Sheet1!A1'
 
-  const values = (receipt.items?.length ? receipt.items : [{ name: receipt.merchant, price: receipt.total }])
-    .map((item) => [receipt.date, receipt.merchant, item.name, item.price])
+  const topItem = (receipt.items || []).reduce(
+    (best, item) => (item.price > (best?.price ?? -Infinity) ? item : best),
+    null
+  )
+
+  const values = [[receipt.date, receipt.merchant, topItem?.name ?? '', receipt.total]]
 
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`,
