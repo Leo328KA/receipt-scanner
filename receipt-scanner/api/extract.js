@@ -28,6 +28,7 @@ export default async function handler(req, res) {
   "total": number,
   "items": [ { "name": string, "price": number } ]
 }
+All monetary amounts are in Indonesian Rupiah (IDR) — return them as plain numbers (e.g. 45000, not "Rp45.000" or 45.000).
 If a field is unreadable, use null. Do not include markdown fences.`
 
   let response
