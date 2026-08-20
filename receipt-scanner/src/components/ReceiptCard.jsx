@@ -1,5 +1,10 @@
-export default function ReceiptCard({ receipt }) {
+export default function ReceiptCard({ receipt = {} }) {
   const { merchant, date, total, items = [], status, thumbUrl } = receipt
+
+  const topItem = items.reduce(
+    (best, item) => (item.price > (best?.price ?? -Infinity) ? item : best),
+    null
+  )
 
   return (
     <div className="receipt-card">
@@ -12,12 +17,12 @@ export default function ReceiptCard({ receipt }) {
         <span className="label">Date</span>
         <span className="value">{date || '—'}</span>
       </div>
-      {items.slice(0, 4).map((item, i) => (
-        <div className="row" key={i}>
-          <span className="label">{item.name}</span>
-          <span className="value">{formatMoney(item.price)}</span>
+      {topItem && (
+        <div className="row">
+          <span className="label">Top item: {topItem.name}</span>
+          <span className="value">{formatMoney(topItem.price)}</span>
         </div>
-      ))}
+      )}
       <div className="row total-row">
         <span>Total</span>
         <span>{formatMoney(total)}</span>
@@ -34,5 +39,10 @@ export default function ReceiptCard({ receipt }) {
 function formatMoney(value) {
   if (value === undefined || value === null || value === '') return '—'
   const n = Number(value)
-  return Number.isNaN(n) ? value : `$${n.toFixed(2)}`
+  if (Number.isNaN(n)) return value
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(n)
 }
