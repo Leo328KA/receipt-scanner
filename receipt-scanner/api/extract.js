@@ -26,8 +26,10 @@ export default async function handler(req, res) {
   "merchant": string,
   "date": string (YYYY-MM-DD),
   "total": number,
+  "category": string,
   "items": [ { "name": string, "price": number } ]
 }
+For "category", pick the single best-fitting word or short phrase with no spaces describing the purchase type (e.g. Groceries, Dining, Transport, Utilities, Shopping, Health, Entertainment, Office, Other).
 All monetary amounts are in Indonesian Rupiah (IDR) — return them as plain numbers (e.g. 45000, not "Rp45.000" or 45.000).
 If a field is unreadable, use null. Do not include markdown fences.`
 
