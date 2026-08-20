@@ -2,7 +2,7 @@ import { useState } from 'react'
 import CaptureButton from './components/CaptureButton.jsx'
 import ReceiptCard from './components/ReceiptCard.jsx'
 import { extractReceipt } from './lib/extractReceipt.js'
-import { signIn, isSignedIn, uploadReceiptPhoto, appendToSheet } from './lib/googleApi.js'
+import { signIn, isSignedIn, uploadReceiptPhoto, appendToSheet, getNextSequenceNumber, sanitizeForFilename } from './lib/googleApi.js'
 
 export default function App() {
   const [receipts, setReceipts] = useState([])
@@ -19,10 +19,12 @@ export default function App() {
       if (!isSignedIn()) await signIn()
 
       const parsed = await extractReceipt(file)
-      const filename = `${parsed.date || 'receipt'}-${parsed.merchant || 'unknown'}.jpg`
+      const category = sanitizeForFilename(parsed.category)
+      const sequence = await getNextSequenceNumber(parsed.date)
+      const filename = `${parsed.date}_${category}_${sequence}.jpg`
 
       await uploadReceiptPhoto(file, filename)
-      await appendToSheet(parsed)
+      await appendToSheet({ date: parsed.date, category, total: parsed.total, filename })
 
       setReceipts((prev) =>
         prev.map((r) => (r.id === localId ? { ...r, ...parsed, thumbUrl, status: 'synced' } : r))
