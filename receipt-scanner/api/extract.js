@@ -133,6 +133,15 @@ const COA_LIST = `
 721199 Biaya Lain-Lain Non Operasional
 `.trim()
 
+// Built directly from COA_LIST above, so there's only one copy of this data
+// to maintain — no separate lookup file to keep in sync.
+const COA_NAME_BY_CODE = Object.fromEntries(
+  COA_LIST.split('\n').map((line) => {
+    const [code, ...rest] = line.trim().split(' ')
+    return [code, rest.join(' ')]
+  })
+)
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -216,6 +225,7 @@ If a field is unreadable, use null. Do not include markdown fences.`
 
   try {
     const parsed = JSON.parse(clean)
+    parsed.coaName = COA_NAME_BY_CODE[parsed.coa] || ''
     return res.status(200).json(parsed)
   } catch (err) {
     console.error('Failed to parse model output as JSON:', text)
