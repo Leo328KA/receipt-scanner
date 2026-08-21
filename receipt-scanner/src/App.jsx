@@ -24,7 +24,7 @@ export default function App() {
       const filename = `${parsed.date}_${category}_${sequence}.jpg`
 
       await uploadReceiptPhoto(file, filename)
-      await appendToSheet({ date: parsed.date, category, total: parsed.total, filename })
+      await appendToSheet({ date: parsed.date, category, total: parsed.total, coa: parsed.coa, filename })
 
       setReceipts((prev) =>
         prev.map((r) => (r.id === localId ? { ...r, ...parsed, thumbUrl, status: 'synced' } : r))
