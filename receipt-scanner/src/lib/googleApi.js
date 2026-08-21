@@ -100,26 +100,48 @@ export async function uploadReceiptPhoto(blob, filename) {
   return res.json() // includes file id
 }
 
-// Appends a single row per receipt into specific columns, starting at row 8:
+// Writes one row per receipt into specific columns, starting at row 8:
 //   C = Date, D = Category, F = Total Price, J = Filename
-// (E, G, H, I are left blank — they're not part of this app's output.)
+// (E, G, H, I are left untouched — they belong to other data in this sheet.)
 // Category matches exactly what's used in the Drive filename.
-// spreadsheetId comes from your .env (VITE_SHEET_ID).
+//
+// This deliberately avoids the Sheets "append" endpoint: append uses a
+// heuristic to guess where an existing "table" ends, which gets confused by
+// other data elsewhere in the sheet and can land in the wrong columns.
+// Instead, we find the exact next empty row ourselves and write directly to it.
 export async function appendToSheet({ date, category, total, filename }) {
   const spreadsheetId = import.meta.env.VITE_SHEET_ID
-  const range = 'KAS!C8:J100000' // explicit bounds avoid ambiguous parsing of a bare column letter
-
-  // Columns C through J, in order: C, D, E, F, G, H, I, J
-  const values = [[date, category, '', total, '', '', '', filename]]
+  const row = await getNextEmptyRow(spreadsheetId)
 
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values })
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          { range: `KAS!C${row}`, values: [[date]] },
+          { range: `KAS!D${row}`, values: [[category]] },
+          { range: `KAS!F${row}`, values: [[total]] },
+          { range: `KAS!J${row}`, values: [[filename]] }
+        ]
+      })
     }
   )
-  if (!res.ok) throw new Error(`Sheets append failed: ${res.status}`)
+  if (!res.ok) throw new Error(`Sheets write failed: ${res.status}`)
   return res.json()
+}
+
+// Reads column C from row 8 downward to find the first genuinely empty row.
+async function getNextEmptyRow(spreadsheetId) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/KAS!C8:C100000`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  if (!res.ok) throw new Error(`Sheets read failed: ${res.status}`)
+  const data = await res.json()
+
+  const filledCount = (data.values || []).filter((row) => row[0] !== undefined && row[0] !== '').length
+  return 8 + filledCount
 }
