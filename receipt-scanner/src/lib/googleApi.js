@@ -107,7 +107,7 @@ export async function uploadReceiptPhoto(blob, filename) {
 // spreadsheetId comes from your .env (VITE_SHEET_ID).
 export async function appendToSheet({ date, category, total, filename }) {
   const spreadsheetId = import.meta.env.VITE_SHEET_ID
-  const range = 'Sheet1!C8:J' // anchors the table at row 8; append finds the next empty row within it
+  const range = 'KAS!C8:J' // anchors the table at row 8; append finds the next empty row within it
 
   // Columns C through J, in order: C, D, E, F, G, H, I, J
   const values = [[date, category, '', total, '', '', '', filename]]
