@@ -36,7 +36,7 @@ If a field is unreadable, use null. Do not include markdown fences.`
   let response
   try {
     response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
       {
         method: 'POST',
         headers: {
