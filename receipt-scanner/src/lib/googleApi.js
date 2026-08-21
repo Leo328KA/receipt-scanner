@@ -101,15 +101,15 @@ export async function uploadReceiptPhoto(blob, filename) {
 }
 
 // Writes one row per receipt into specific columns, starting at row 8:
-//   B = Date, D = Category, F = Total Price, J = Filename
-// (C, E, G, H, I are left untouched — they belong to other data in this sheet.)
+//   B = Date, D = Category, F = Total Price, H = COA Code, J = Filename
+// (C, E, G, I are left untouched — they belong to other data in this sheet.)
 // Category matches exactly what's used in the Drive filename.
 //
 // This deliberately avoids the Sheets "append" endpoint: append uses a
 // heuristic to guess where an existing "table" ends, which gets confused by
 // other data elsewhere in the sheet and can land in the wrong columns.
 // Instead, we find the exact next empty row ourselves and write directly to it.
-export async function appendToSheet({ date, category, total, filename }) {
+export async function appendToSheet({ date, category, total, coa, filename }) {
   const spreadsheetId = import.meta.env.VITE_SHEET_ID
   const row = await getNextEmptyRow(spreadsheetId)
 
@@ -124,6 +124,7 @@ export async function appendToSheet({ date, category, total, filename }) {
           { range: `KAS!B${row}`, values: [[date]] },
           { range: `KAS!D${row}`, values: [[category]] },
           { range: `KAS!F${row}`, values: [[total]] },
+          { range: `KAS!H${row}`, values: [[coa]] },
           { range: `KAS!J${row}`, values: [[filename]] }
         ]
       })
