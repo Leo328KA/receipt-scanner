@@ -101,8 +101,8 @@ export async function uploadReceiptPhoto(blob, filename) {
 }
 
 // Writes one row per receipt into specific columns, starting at row 8:
-//   C = Date, D = Category, F = Total Price, J = Filename
-// (E, G, H, I are left untouched — they belong to other data in this sheet.)
+//   B = Date, D = Category, F = Total Price, J = Filename
+// (C, E, G, H, I are left untouched — they belong to other data in this sheet.)
 // Category matches exactly what's used in the Drive filename.
 //
 // This deliberately avoids the Sheets "append" endpoint: append uses a
@@ -121,7 +121,7 @@ export async function appendToSheet({ date, category, total, filename }) {
       body: JSON.stringify({
         valueInputOption: 'USER_ENTERED',
         data: [
-          { range: `KAS!C${row}`, values: [[date]] },
+          { range: `KAS!B${row}`, values: [[date]] },
           { range: `KAS!D${row}`, values: [[category]] },
           { range: `KAS!F${row}`, values: [[total]] },
           { range: `KAS!J${row}`, values: [[filename]] }
@@ -133,10 +133,10 @@ export async function appendToSheet({ date, category, total, filename }) {
   return res.json()
 }
 
-// Reads column C from row 8 downward to find the first genuinely empty row.
+// Reads column B (Date) from row 8 downward to find the first genuinely empty row.
 async function getNextEmptyRow(spreadsheetId) {
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/KAS!C8:C100000`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/KAS!B8:B100000`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   )
   if (!res.ok) throw new Error(`Sheets read failed: ${res.status}`)
